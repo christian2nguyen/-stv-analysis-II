@@ -7,6 +7,61 @@ class JOINTCC0pi_ANNIE : public SelectionBase {
 
 public:
 
+  struct TankBDTFeatureOutputs {
+    float prompt_muon_total_pe = -9999.0f;
+    float qij = -9999.0f;
+    float q_asym_ud = -9999.0f;
+    float pe_asym_ud = -9999.0f;
+    float q_asym_tb = -9999.0f;
+    float pe_asym_tb = -9999.0f;
+    float q_r_mean = -9999.0f;
+    float pe_r_mean = -9999.0f;
+    float q_phi_mean = -9999.0f;
+    float pe_phi_mean = -9999.0f;
+    float q_phi_c1 = -9999.0f;
+    float q_phi_s1 = -9999.0f;
+    float q_phi_a1 = -9999.0f;
+    float q_phi_c2 = -9999.0f;
+    float q_phi_s2 = -9999.0f;
+    float q_phi_a2 = -9999.0f;
+    float pe_phi_c1 = -9999.0f;
+    float pe_phi_s1 = -9999.0f;
+    float pe_phi_a1 = -9999.0f;
+    float pe_phi_c2 = -9999.0f;
+    float pe_phi_s2 = -9999.0f;
+    float pe_phi_a2 = -9999.0f;
+    float n_unique_pmts_hit = -9999.0f;
+    float max_pe_fraction = -9999.0f;
+    float top5_pe_fraction = -9999.0f;
+    float pmt_pe_entropy = -9999.0f;
+    float pmt_pe_effective_n = -9999.0f;
+    float q_center_x = -9999.0f;
+    float q_center_y = -9999.0f;
+    float q_center_z = -9999.0f;
+    float q_rms_x = -9999.0f;
+    float q_rms_y = -9999.0f;
+    float q_rms_z = -9999.0f;
+    float pe_center_x = -9999.0f;
+    float pe_center_y = -9999.0f;
+    float pe_center_z = -9999.0f;
+    float pe_rms_x = -9999.0f;
+    float pe_rms_y = -9999.0f;
+    float pe_rms_z = -9999.0f;
+    float hit_t_mean = -9999.0f;
+    float hit_t_stddev = -9999.0f;
+    float hit_q_sum = -9999.0f;
+    float hit_q_mean = -9999.0f;
+    float hit_q_stddev = -9999.0f;
+    float hit_pe_sum = -9999.0f;
+    float hit_pe_mean = -9999.0f;
+    float hit_pe_stddev = -9999.0f;
+    float hit_t_min = -9999.0f;
+    float hit_t_max = -9999.0f;
+    float hit_t_range = -9999.0f;
+    float timing_corr_r = -9999.0f;
+    float timing_corr_z = -9999.0f;
+  };
+
   JOINTCC0pi_ANNIE();
 
   ~JOINTCC0pi_ANNIE() {
@@ -104,6 +159,13 @@ public:
       double trueMRD_stoptrack_X_;
       double trueMRD_stoptrack_Y_;
       double trueMRD_stoptrack_Z_;
+
+      double tank_bdt_no_pion_score_ = -9999.0;
+      double tank_bdt_pion_score_ = -9999.0;
+      TankBDTFeatureOutputs tank_bdt_feature_outputs_;
+      bool print_tank_bdt_input_preview_ = false;
+      int print_tank_bdt_input_preview_limit_ = 10;
+      int print_tank_bdt_input_preview_count_ = 0;
       
       
       

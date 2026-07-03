@@ -35,8 +35,6 @@ bool g_annie_tank_bdt_loaded = false;
 bool g_annie_tank_bdt_load_attempted = false;
 PMTPositionInfo g_pmt_position_info(0.0);
 bool g_pmt_position_loaded = false;
-double g_tank_bdt_no_pion_score = -9999.0;
-double g_tank_bdt_pion_score = -9999.0;
 
 struct BDTSummaryStats {
   float count = 0.0f;
@@ -480,47 +478,21 @@ bool EnsureTankBDTLoaded() {
   return false;
 }
 
-bool BuildTankBDTFeatures(const AnalysisANNIE_Event_nuwro* event,
-                          std::vector<float>& features) {
+void ResetTankBDTFeatureOutputs(
+    JOINTCC0pi_ANNIE_nuwro::TankBDTFeatureOutputs& outputs) {
+  outputs = JOINTCC0pi_ANNIE_nuwro::TankBDTFeatureOutputs{};
+}
+
+bool BuildTankBDTFeatureOutputs(const AnalysisANNIE_Event_nuwro* event,
+                                JOINTCC0pi_ANNIE_nuwro::TankBDTFeatureOutputs& outputs) {
   if (!event) return false;
   if (!event->hitT_ || !event->hitQ_ || !event->hitPE_ ||
       !event->hitDetID_) {
     return false;
   }
 
-  features.clear();
-  features.reserve(52);
-  features.push_back(static_cast<float>(event->promptMuonTotalPE_));
-  features.push_back(static_cast<float>(event->Qij_));
-
   const TankBDTPMTFeatures pmt = ComputeTankBDTPMTFeatures(
       event->hitDetID_, event->hitQ_, event->hitPE_);
-  features.push_back(pmt.q_asym_ud);
-  features.push_back(pmt.pe_asym_ud);
-  features.push_back(pmt.q_asym_tb);
-  features.push_back(pmt.pe_asym_tb);
-  features.push_back(pmt.q_r_mean);
-  features.push_back(pmt.pe_r_mean);
-  features.push_back(pmt.q_phi_mean);
-  features.push_back(pmt.pe_phi_mean);
-  features.push_back(pmt.q_phi_c1);
-  features.push_back(pmt.q_phi_s1);
-  features.push_back(pmt.q_phi_a1);
-  features.push_back(pmt.q_phi_c2);
-  features.push_back(pmt.q_phi_s2);
-  features.push_back(pmt.q_phi_a2);
-  features.push_back(pmt.pe_phi_c1);
-  features.push_back(pmt.pe_phi_s1);
-  features.push_back(pmt.pe_phi_a1);
-  features.push_back(pmt.pe_phi_c2);
-  features.push_back(pmt.pe_phi_s2);
-  features.push_back(pmt.pe_phi_a2);
-  features.push_back(pmt.n_unique_pmts_hit);
-  features.push_back(pmt.max_pe_fraction);
-  features.push_back(pmt.top5_pe_fraction);
-  features.push_back(pmt.pmt_pe_entropy);
-  features.push_back(pmt.pmt_pe_effective_n);
-
   const BDTSummaryStats hit_t_stats = SummarizeVector(event->hitT_);
   const BDTSummaryStats hit_q_stats = SummarizeVector(event->hitQ_);
   const BDTSummaryStats hit_pe_stats = SummarizeVector(event->hitPE_);
@@ -528,38 +500,125 @@ bool BuildTankBDTFeatures(const AnalysisANNIE_Event_nuwro* event,
       ComputeTimingGeometryCorrelations(event->hitDetID_, event->hitT_,
                                         event->hitPE_);
 
-  features.push_back(pmt.q_center_x);
-  features.push_back(pmt.q_center_y);
-  features.push_back(pmt.q_center_z);
-  features.push_back(pmt.q_rms_x);
-  features.push_back(pmt.q_rms_y);
-  features.push_back(pmt.q_rms_z);
-  features.push_back(pmt.pe_center_x);
-  features.push_back(pmt.pe_center_y);
-  features.push_back(pmt.pe_center_z);
-  features.push_back(pmt.pe_rms_x);
-  features.push_back(pmt.pe_rms_y);
-  features.push_back(pmt.pe_rms_z);
-  features.push_back(hit_t_stats.mean);
-  features.push_back(hit_t_stats.stddev);
-  features.push_back(hit_q_stats.sum);
-  features.push_back(hit_q_stats.mean);
-  features.push_back(hit_q_stats.stddev);
-  features.push_back(hit_pe_stats.sum);
-  features.push_back(hit_pe_stats.mean);
-  features.push_back(hit_pe_stats.stddev);
-  features.push_back(hit_t_stats.min);
-  features.push_back(hit_t_stats.max);
-  features.push_back(hit_t_stats.max - hit_t_stats.min);
-  features.push_back(timing_corr.first);
-  features.push_back(timing_corr.second);
+  outputs.prompt_muon_total_pe = static_cast<float>(event->promptMuonTotalPE_);
+  outputs.qij = static_cast<float>(event->Qij_);
+  outputs.q_asym_ud = pmt.q_asym_ud;
+  outputs.pe_asym_ud = pmt.pe_asym_ud;
+  outputs.q_asym_tb = pmt.q_asym_tb;
+  outputs.pe_asym_tb = pmt.pe_asym_tb;
+  outputs.q_r_mean = pmt.q_r_mean;
+  outputs.pe_r_mean = pmt.pe_r_mean;
+  outputs.q_phi_mean = pmt.q_phi_mean;
+  outputs.pe_phi_mean = pmt.pe_phi_mean;
+  outputs.q_phi_c1 = pmt.q_phi_c1;
+  outputs.q_phi_s1 = pmt.q_phi_s1;
+  outputs.q_phi_a1 = pmt.q_phi_a1;
+  outputs.q_phi_c2 = pmt.q_phi_c2;
+  outputs.q_phi_s2 = pmt.q_phi_s2;
+  outputs.q_phi_a2 = pmt.q_phi_a2;
+  outputs.pe_phi_c1 = pmt.pe_phi_c1;
+  outputs.pe_phi_s1 = pmt.pe_phi_s1;
+  outputs.pe_phi_a1 = pmt.pe_phi_a1;
+  outputs.pe_phi_c2 = pmt.pe_phi_c2;
+  outputs.pe_phi_s2 = pmt.pe_phi_s2;
+  outputs.pe_phi_a2 = pmt.pe_phi_a2;
+  outputs.n_unique_pmts_hit = pmt.n_unique_pmts_hit;
+  outputs.max_pe_fraction = pmt.max_pe_fraction;
+  outputs.top5_pe_fraction = pmt.top5_pe_fraction;
+  outputs.pmt_pe_entropy = pmt.pmt_pe_entropy;
+  outputs.pmt_pe_effective_n = pmt.pmt_pe_effective_n;
+  outputs.q_center_x = pmt.q_center_x;
+  outputs.q_center_y = pmt.q_center_y;
+  outputs.q_center_z = pmt.q_center_z;
+  outputs.q_rms_x = pmt.q_rms_x;
+  outputs.q_rms_y = pmt.q_rms_y;
+  outputs.q_rms_z = pmt.q_rms_z;
+  outputs.pe_center_x = pmt.pe_center_x;
+  outputs.pe_center_y = pmt.pe_center_y;
+  outputs.pe_center_z = pmt.pe_center_z;
+  outputs.pe_rms_x = pmt.pe_rms_x;
+  outputs.pe_rms_y = pmt.pe_rms_y;
+  outputs.pe_rms_z = pmt.pe_rms_z;
+  outputs.hit_t_mean = hit_t_stats.mean;
+  outputs.hit_t_stddev = hit_t_stats.stddev;
+  outputs.hit_q_sum = hit_q_stats.sum;
+  outputs.hit_q_mean = hit_q_stats.mean;
+  outputs.hit_q_stddev = hit_q_stats.stddev;
+  outputs.hit_pe_sum = hit_pe_stats.sum;
+  outputs.hit_pe_mean = hit_pe_stats.mean;
+  outputs.hit_pe_stddev = hit_pe_stats.stddev;
+  outputs.hit_t_min = hit_t_stats.min;
+  outputs.hit_t_max = hit_t_stats.max;
+  outputs.hit_t_range = hit_t_stats.max - hit_t_stats.min;
+  outputs.timing_corr_r = timing_corr.first;
+  outputs.timing_corr_z = timing_corr.second;
 
-  return features.size() == 52;
+  return true;
 }
 
-bool EvaluateTankBDT(const AnalysisANNIE_Event_nuwro* event,
-                     float& no_pion_probability,
-                     float& pion_probability) {
+void CopyTankBDTFeatureOutputs(
+    const JOINTCC0pi_ANNIE_nuwro::TankBDTFeatureOutputs& outputs,
+    std::vector<float>& features) {
+  features.clear();
+  features.reserve(52);
+  features.push_back(outputs.prompt_muon_total_pe);
+  features.push_back(outputs.qij);
+  features.push_back(outputs.q_asym_ud);
+  features.push_back(outputs.pe_asym_ud);
+  features.push_back(outputs.q_asym_tb);
+  features.push_back(outputs.pe_asym_tb);
+  features.push_back(outputs.q_r_mean);
+  features.push_back(outputs.pe_r_mean);
+  features.push_back(outputs.q_phi_mean);
+  features.push_back(outputs.pe_phi_mean);
+  features.push_back(outputs.q_phi_c1);
+  features.push_back(outputs.q_phi_s1);
+  features.push_back(outputs.q_phi_a1);
+  features.push_back(outputs.q_phi_c2);
+  features.push_back(outputs.q_phi_s2);
+  features.push_back(outputs.q_phi_a2);
+  features.push_back(outputs.pe_phi_c1);
+  features.push_back(outputs.pe_phi_s1);
+  features.push_back(outputs.pe_phi_a1);
+  features.push_back(outputs.pe_phi_c2);
+  features.push_back(outputs.pe_phi_s2);
+  features.push_back(outputs.pe_phi_a2);
+  features.push_back(outputs.n_unique_pmts_hit);
+  features.push_back(outputs.max_pe_fraction);
+  features.push_back(outputs.top5_pe_fraction);
+  features.push_back(outputs.pmt_pe_entropy);
+  features.push_back(outputs.pmt_pe_effective_n);
+  features.push_back(outputs.q_center_x);
+  features.push_back(outputs.q_center_y);
+  features.push_back(outputs.q_center_z);
+  features.push_back(outputs.q_rms_x);
+  features.push_back(outputs.q_rms_y);
+  features.push_back(outputs.q_rms_z);
+  features.push_back(outputs.pe_center_x);
+  features.push_back(outputs.pe_center_y);
+  features.push_back(outputs.pe_center_z);
+  features.push_back(outputs.pe_rms_x);
+  features.push_back(outputs.pe_rms_y);
+  features.push_back(outputs.pe_rms_z);
+  features.push_back(outputs.hit_t_mean);
+  features.push_back(outputs.hit_t_stddev);
+  features.push_back(outputs.hit_q_sum);
+  features.push_back(outputs.hit_q_mean);
+  features.push_back(outputs.hit_q_stddev);
+  features.push_back(outputs.hit_pe_sum);
+  features.push_back(outputs.hit_pe_mean);
+  features.push_back(outputs.hit_pe_stddev);
+  features.push_back(outputs.hit_t_min);
+  features.push_back(outputs.hit_t_max);
+  features.push_back(outputs.hit_t_range);
+  features.push_back(outputs.timing_corr_r);
+  features.push_back(outputs.timing_corr_z);
+}
+
+bool EvaluateTankBDT(
+    const JOINTCC0pi_ANNIE_nuwro::TankBDTFeatureOutputs& outputs,
+    float& no_pion_probability,
+    float& pion_probability) {
   no_pion_probability = -9999.f;
   pion_probability = -9999.f;
 
@@ -568,11 +627,7 @@ bool EvaluateTankBDT(const AnalysisANNIE_Event_nuwro* event,
   }
 
   std::vector<float> features;
-  if (!BuildTankBDTFeatures(event, features)) {
-    std::cerr << "[ANNIE BDT] Missing event inputs for tank BDT evaluation"
-              << std::endl;
-    return false;
-  }
+  CopyTankBDTFeatureOutputs(outputs, features);
 
   DMatrixHandle dmat = nullptr;
   if (!XGBCallWithMessage(
@@ -776,8 +831,112 @@ void JOINTCC0pi_ANNIE_nuwro::define_output_branches() {
    
    set_branch_nolabel( &single_ring_score_, "single_ring_score");
    set_branch_nolabel( &multi_ring_score_, "multi_ring_score");
-   set_branch_nolabel( &g_tank_bdt_no_pion_score, "tank_bdt_no_pion_score");
-   set_branch_nolabel( &g_tank_bdt_pion_score, "tank_bdt_pion_score");
+   set_branch_nolabel( &tank_bdt_no_pion_score_, "tank_bdt_no_pion_score");
+   set_branch_nolabel( &tank_bdt_pion_score_, "tank_bdt_pion_score");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.prompt_muon_total_pe,
+       "tank_bdt_input_promptMuonTotalPE");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.qij,
+       "tank_bdt_input_Qij");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.q_asym_ud,
+       "tank_bdt_input_q_asym_ud");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.pe_asym_ud,
+       "tank_bdt_input_pe_asym_ud");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.q_asym_tb,
+       "tank_bdt_input_q_asym_tb");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.pe_asym_tb,
+       "tank_bdt_input_pe_asym_tb");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.q_r_mean,
+       "tank_bdt_input_q_r_mean");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.pe_r_mean,
+       "tank_bdt_input_pe_r_mean");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.q_phi_mean,
+       "tank_bdt_input_q_phi_mean");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.pe_phi_mean,
+       "tank_bdt_input_pe_phi_mean");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.q_phi_c1,
+       "tank_bdt_input_q_phi_c1");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.q_phi_s1,
+       "tank_bdt_input_q_phi_s1");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.q_phi_a1,
+       "tank_bdt_input_q_phi_a1");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.q_phi_c2,
+       "tank_bdt_input_q_phi_c2");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.q_phi_s2,
+       "tank_bdt_input_q_phi_s2");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.q_phi_a2,
+       "tank_bdt_input_q_phi_a2");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.pe_phi_c1,
+       "tank_bdt_input_pe_phi_c1");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.pe_phi_s1,
+       "tank_bdt_input_pe_phi_s1");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.pe_phi_a1,
+       "tank_bdt_input_pe_phi_a1");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.pe_phi_c2,
+       "tank_bdt_input_pe_phi_c2");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.pe_phi_s2,
+       "tank_bdt_input_pe_phi_s2");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.pe_phi_a2,
+       "tank_bdt_input_pe_phi_a2");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.n_unique_pmts_hit,
+       "tank_bdt_input_n_unique_pmts_hit");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.max_pe_fraction,
+       "tank_bdt_input_max_pe_fraction");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.top5_pe_fraction,
+       "tank_bdt_input_top5_pe_fraction");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.pmt_pe_entropy,
+       "tank_bdt_input_pmt_pe_entropy");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.pmt_pe_effective_n,
+       "tank_bdt_input_pmt_pe_effective_n");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.q_center_x,
+       "tank_bdt_input_q_center_x");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.q_center_y,
+       "tank_bdt_input_q_center_y");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.q_center_z,
+       "tank_bdt_input_q_center_z");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.q_rms_x,
+       "tank_bdt_input_q_rms_x");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.q_rms_y,
+       "tank_bdt_input_q_rms_y");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.q_rms_z,
+       "tank_bdt_input_q_rms_z");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.pe_center_x,
+       "tank_bdt_input_pe_center_x");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.pe_center_y,
+       "tank_bdt_input_pe_center_y");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.pe_center_z,
+       "tank_bdt_input_pe_center_z");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.pe_rms_x,
+       "tank_bdt_input_pe_rms_x");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.pe_rms_y,
+       "tank_bdt_input_pe_rms_y");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.pe_rms_z,
+       "tank_bdt_input_pe_rms_z");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.hit_t_mean,
+       "tank_bdt_input_hit_t_mean");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.hit_t_stddev,
+       "tank_bdt_input_hit_t_stddev");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.hit_q_sum,
+       "tank_bdt_input_hit_q_sum");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.hit_q_mean,
+       "tank_bdt_input_hit_q_mean");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.hit_q_stddev,
+       "tank_bdt_input_hit_q_stddev");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.hit_pe_sum,
+       "tank_bdt_input_hit_pe_sum");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.hit_pe_mean,
+       "tank_bdt_input_hit_pe_mean");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.hit_pe_stddev,
+       "tank_bdt_input_hit_pe_stddev");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.hit_t_min,
+       "tank_bdt_input_hit_t_min");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.hit_t_max,
+       "tank_bdt_input_hit_t_max");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.hit_t_range,
+       "tank_bdt_input_hit_t_range");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.timing_corr_r,
+       "tank_bdt_input_timing_corr_r");
+   set_branch_nolabel( &tank_bdt_feature_outputs_.timing_corr_z,
+       "tank_bdt_input_timing_corr_z");
 
    set_branch_nolabel( &pmu_gev_, "pmu_gev" );
    //set_branch_nolabel( &Qij_, "Qij" );
@@ -837,8 +996,8 @@ void JOINTCC0pi_ANNIE_nuwro::reset() {
 
    single_ring_score_ = -9999;
    multi_ring_score_ = -9999;
-   g_tank_bdt_no_pion_score = -9999.0;
-   g_tank_bdt_pion_score = -9999.0;
+   tank_bdt_no_pion_score_ = -9999.0;
+   tank_bdt_pion_score_ = -9999.0;
   
   mc_pmu_gev_ = -9999.;
   pmu_gev_ = -9999.;
@@ -856,6 +1015,7 @@ void JOINTCC0pi_ANNIE_nuwro::reset() {
   trueCosTheta_ = -9999.;
   simpleRecoMomentumCor_ = -9999;
   simpleRecoMomentum_ = -9999;
+  ResetTankBDTFeatureOutputs(tank_bdt_feature_outputs_);
   
   sel_has_no_pion_candidate_Qij_ = false;
   sel_Atleast1track_MRDSTOP_ = false; 
@@ -1156,9 +1316,13 @@ bool JOINTCC0pi_ANNIE_nuwro::selection( AnalysisANNIE_Event_nuwro* event ) {
 
     float no_pion_probability = -9999.f;
     float pion_probability = -9999.f;
-    if (EvaluateTankBDT(event, no_pion_probability, pion_probability)) {
-      g_tank_bdt_no_pion_score = no_pion_probability;
-      g_tank_bdt_pion_score = pion_probability;
+    const bool built_tank_bdt_features =
+        BuildTankBDTFeatureOutputs(event, tank_bdt_feature_outputs_);
+    if (built_tank_bdt_features &&
+        EvaluateTankBDT(tank_bdt_feature_outputs_, no_pion_probability,
+                        pion_probability)) {
+      tank_bdt_no_pion_score_ = no_pion_probability;
+      tank_bdt_pion_score_ = pion_probability;
     }
 
   
