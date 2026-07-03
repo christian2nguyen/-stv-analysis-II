@@ -1,6 +1,45 @@
 // XSecAnalyzer includes
 #include "XSecAnalyzer/Binning/JOINTCC0Pi_ANNIE_det.hh"
 
+#include <cstdlib>
+#include <fstream>
+#include <initializer_list>
+#include <set>
+#include <string>
+
+namespace {
+
+std::string trim_copy(const std::string& input) {
+  const std::string whitespace = " \t\r\n";
+  const size_t first = input.find_first_not_of(whitespace);
+  if (first == std::string::npos) return "";
+  const size_t last = input.find_last_not_of(whitespace);
+  return input.substr(first, last - first + 1);
+}
+
+std::set<std::string> load_sideband_config(
+    const std::string& config_path,
+    const std::initializer_list<std::string>& default_keys) {
+  std::ifstream config_stream(config_path);
+  if (!config_stream) {
+    return std::set<std::string>(default_keys.begin(), default_keys.end());
+  }
+
+  std::set<std::string> enabled_keys;
+  std::string line;
+  while (std::getline(config_stream, line)) {
+    const size_t comment_pos = line.find('#');
+    if (comment_pos != std::string::npos) line.erase(comment_pos);
+
+    const std::string key = trim_copy(line);
+    if (!key.empty()) enabled_keys.insert(key);
+  }
+
+  return enabled_keys;
+}
+
+}  // namespace
+
 JOINTCC0Pi_ANNIE_det::JOINTCC0Pi_ANNIE_det() : BinSchemeBase( "JOINTCC0Pi_ANNIE_det" ) {}
 
 void JOINTCC0Pi_ANNIE_det::DefineBlocks() {
@@ -30,6 +69,37 @@ void JOINTCC0Pi_ANNIE_det::DefineBlocks() {
   branchexpr_reco_pmu,
   branchexpr_true_pmu,branchexpr_sideband;
 
+  const char* analyzer_dir = std::getenv("XSEC_ANALYZER_DIR");
+  const std::string sideband_config_path = analyzer_dir
+    ? std::string(analyzer_dir) + "/configs/JOINTCC0Pi_ANNIE_det_sidebands.conf"
+    : "configs/JOINTCC0Pi_ANNIE_det_sidebands.conf";
+  const auto enabled_sidebands = load_sideband_config(
+      sideband_config_path, {"bdt_no_pion_score", "pion_control_pmu"});
+  auto sideband_enabled =
+      [&enabled_sidebands](const std::string& key,
+                           std::initializer_list<std::string> groups = {}) {
+        if (enabled_sidebands.count("all") > 0u ||
+            enabled_sidebands.count(key) > 0u) {
+          return true;
+        }
+
+        for (const auto& group : groups) {
+          if (enabled_sidebands.count(group) > 0u) return true;
+        }
+
+        return false;
+      };
+  auto add_sideband_1d =
+      [&](const std::string& key, const std::string& branch_expr,
+          const std::string& plot_title, const std::string& plot_textitle,
+          const std::vector<double>& edges, const std::string& selection,
+          std::initializer_list<std::string> groups = {}) {
+        if (!sideband_enabled(key, groups)) return;
+        Block1D* sideband = new Block1D(branch_expr, plot_title, plot_textitle,
+            edges, selection, kSidebandRecoBin);
+        vect_sideband.emplace_back(sideband);
+      };
+
 
    //std::vector<double> Eavailedges{0.0, .05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, .8};
 //    std::vector<double> Xp_edges{-0.5, 0.5, 0.5};
@@ -51,6 +121,34 @@ void JOINTCC0Pi_ANNIE_det::DefineBlocks() {
   std::vector<double> NMRDtracks{0.5, 1.5, 2.5};
   
    std::vector<double> BTD_PredictionSideband = {0.0,.2,.4, 0.45, .55,.6,.65,.7,.75,.76,.77,.78,.79,.8,.81,.82,.83,.84,.85,.86,.87,.88,.89 ,.9, .925};
+   std::vector<double> BDTUnitInterval{0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
+       0.6, 0.7, 0.8, 0.9, 1.0};
+   std::vector<double> BDTSignedUnit{ -1.0, -0.8, -0.6, -0.4, -0.2, 0.0,
+       0.2, 0.4, 0.6, 0.8, 1.0 };
+   std::vector<double> BDTPhi{-3.2, -2.4, -1.6, -0.8, 0.0, 0.8, 1.6, 2.4,
+       3.2};
+   std::vector<double> BDTCenterCoord{-250, -200, -150, -100, -50, 0, 50,
+       100, 150, 200, 250};
+   std::vector<double> BDTRadiusLike{0, 10, 20, 30, 40, 50, 60, 80, 100,
+       120, 150, 200};
+   std::vector<double> BDTRmsCoord{0, 10, 20, 30, 40, 50, 60, 80, 100, 120,
+       150, 200};
+   std::vector<double> BDTCountEdges{0, 5, 10, 15, 20, 30, 40, 60, 80, 100,
+       150};
+   std::vector<double> BDTEntropy{0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0,
+       4.5, 5.0};
+   std::vector<double> BDTEffectiveN{0, 2, 4, 6, 8, 10, 15, 20, 30, 40, 60,
+       80, 100, 150};
+   std::vector<double> BDTTimeMean{-100, 0, 100, 200, 300, 400, 500, 700,
+       1000, 1500, 2000, 3000};
+   std::vector<double> BDTTimeSpread{0, 25, 50, 75, 100, 150, 200, 300, 500,
+       700, 1000, 1500, 2000};
+   std::vector<double> BDTChargeSum{0, 100, 200, 400, 600, 800, 1000, 1500,
+       2000, 3000, 5000, 8000};
+   std::vector<double> BDTChargeMean{0, 5, 10, 20, 30, 40, 50, 75, 100, 150,
+       200};
+   std::vector<double> BDTChargeSpread{0, 5, 10, 20, 30, 40, 50, 75, 100,
+       150, 200};
 
        // the title "title; unit" is used in plot in root style
   title ="p_{mu};GeV/c";
@@ -173,248 +271,259 @@ void JOINTCC0Pi_ANNIE_det::DefineBlocks() {
   
 
   
-    //Block1D *Pmu_reco_FMV_tag = new Block1D( branchexpr_reco_pmu, title, textitle, PmuBinnEdges_wc, SELECTION_Taged_FMV, kSidebandRecoBin);
-    //vect_sideband.emplace_back(Pmu_reco_FMV_tag);
-  
-    //////////////////////////////////////////////////////////////////////////
-    
-    /*
-    Block1D *b1dt_pmu_reco_nopmu = new Block1D( branchexpr_reco_pmu, title, textitle, PmuBinnEdges_wc_extra, SELECTION_noPmu, kSidebandRecoBin);
-    vect_sideband.emplace_back(b1dt_pmu_reco_nopmu);
-  
-    Block1D *b1dt_pmu_reco_nopmuandnocosetheta = new Block1D( branchexpr_reco_pmu, title, textitle, PmuBinnEdges_wc_extra, SELECTION_noPmuandnocostheta, kSidebandRecoBin);
-    vect_sideband.emplace_back(b1dt_pmu_reco_nopmuandnocosetheta);
-  
-  
-  
-            // the title "title; unit" is used in plot in root style
-  title ="cos#theta_{#mu};";
-  // the tex title "tex title; units" is used in latex format
-   textitle = "cos//theta_{//mu};";
-  // selection
-  std::string branchexpr_reco_costheta = "simpleRecoCosTheta;";
-  std::string  branchexpr_true_costheta = "trueCosTheta;";
+  const std::string branchexpr_reco_costheta = "simpleRecoCosTheta;";
 
-  // Will make this a side band for now since have to use different cross section extraction scheme 
-  Block1D *b1dt_costheta_reco = new Block1D( branchexpr_reco_costheta, title, textitle, costheta, selection_reco, kSidebandRecoBin);
-  vect_sideband.emplace_back(b1dt_costheta_reco);
-  
-    Block1D *b1dt_costheta_reco_nocostheta = new Block1D( branchexpr_reco_costheta, title, textitle, costheta, SELECTION_noCostheta, kSidebandRecoBin);
-  vect_sideband.emplace_back(b1dt_costheta_reco_nocostheta);
-  
-  //didnt see events when !sel_noVeto
-  //Block1D *b1dt_costheta_reco_FMV_tag = new Block1D( branchexpr_reco_costheta, title, textitle, costheta, SELECTION_Taged_FMV, kSidebandRecoBin);
-  //vect_sideband.emplace_back(b1dt_costheta_reco_FMV_tag);
-  
- branchexpr_sideband = "lenghtvertextoStartMRD_cm;";
-   // the title "title; unit" is used in plot in root style
-  title ="tracklenght;[cm]";
-  // the tex title "tex title; units" is used in latex format
-  textitle = "tracklenght;[cm]";
-///////////////////////////////////////////////
-  Block1D *b1r_sideband_trklengintank = new Block1D(branchexpr_sideband, title, textitle, MRDtracklenght_vertex_toMRD, selection_reco, kSidebandRecoBin);
-  vect_sideband.emplace_back(b1r_sideband_trklengintank);
-  
-  branchexpr_sideband = "tracklenghtMRD_cm;";
-  
-  Block1D *b1r_sideband_trklengInMRD = new Block1D(branchexpr_sideband, title, textitle, MRDtracklenght, selection_reco, kSidebandRecoBin);
-  vect_sideband.emplace_back(b1r_sideband_trklengInMRD);
-///////////////////////////////////////////////
- branchexpr_sideband = "numMRDTracks;";
-   // the title "title; unit" is used in plot in root style
-title ="Ntrks;[cm]";
-  // the tex title "tex title; units" is used in latex format
-textitle = "Ntrks;[cm]";
-Block1D *b1dt_NMRDtracks = new Block1D( branchexpr_sideband, title, textitle, NMRDtracks, selection_reco, kSidebandRecoBin);
-vect_sideband.emplace_back(b1dt_NMRDtracks);
-  ////////////////////////////////////////////
- branchexpr_sideband = "vertexX;cm";
-   // the title "title; unit" is used in plot in root style
-  title ="Vertex X;cm";
-  // the tex title "tex title; units" is used in latex format
-  textitle = "Vertex X;cm";
-  Block1D *b1r_sideband_vertexX_noFV = new Block1D(branchexpr_sideband, title, textitle, VertexX, SELECTION_noFV, kSidebandRecoBin);
-  Block1D *b1r_sideband_vertexX = new Block1D(branchexpr_sideband, title, textitle, VertexX, selection_reco, kSidebandRecoBin);
-  vect_sideband.emplace_back(b1r_sideband_vertexX_noFV);
-  vect_sideband.emplace_back(b1r_sideband_vertexX);
-//////////////////////////////////////////////////////////////
+  add_sideband_1d("phase_space_pmu_no_pmu", branchexpr_reco_pmu,
+      "p_{mu};GeV/c", "p_{mu};GeV/c", PmuBinnEdges_wc_extra, SELECTION_noPmu,
+      {"phase_space"});
+  add_sideband_1d("phase_space_pmu_no_pmu_no_costheta", branchexpr_reco_pmu,
+      "p_{mu};GeV/c", "p_{mu};GeV/c", PmuBinnEdges_wc_extra,
+      SELECTION_noPmuandnocostheta, {"phase_space"});
+  add_sideband_1d("phase_space_costheta_nominal", branchexpr_reco_costheta,
+      "cos#theta_{#mu};", "cos#theta_{#mu};", costheta, selection_reco,
+      {"phase_space"});
+  add_sideband_1d("phase_space_costheta_no_cut", branchexpr_reco_costheta,
+      "cos#theta_{#mu};", "cos#theta_{#mu};", costheta, SELECTION_noCostheta,
+      {"phase_space"});
+  add_sideband_1d("tagged_fmv_pmu", branchexpr_reco_pmu, "p_{mu};GeV/c",
+      "p_{mu};GeV/c", PmuBinnEdges_wc, SELECTION_Taged_FMV, {"fmv"});
 
- branchexpr_sideband = "vertexY;cm";
-   // the title "title; unit" is used in plot in root style
-  title ="Vertex Y;cm";
-  // the tex title "tex title; units" is used in latex format
-  textitle = "Vertex Y;cm";
-  Block1D *b1r_sideband_vertexY_noFV = new Block1D(branchexpr_sideband, title, textitle, VertexY, SELECTION_noFV, kSidebandRecoBin);
-  Block1D *b1r_sideband_vertexY = new Block1D(branchexpr_sideband, title, textitle, VertexY, selection_reco, kSidebandRecoBin);
-  vect_sideband.emplace_back(b1r_sideband_vertexY_noFV);
-  vect_sideband.emplace_back(b1r_sideband_vertexY);
+  add_sideband_1d("bdt_input_track_to_mrd", "lenghtvertextoStartMRD_cm;",
+      "tracklenght;[cm]", "tracklenght;[cm]",
+      MRDtracklenght_vertex_toMRD, selection_reco, {"bdt_inputs"});
+  add_sideband_1d("bdt_input_track_in_mrd", "tracklenghtMRD_cm;",
+      "tracklenght;[cm]", "tracklenght;[cm]", MRDtracklenght, selection_reco,
+      {"bdt_inputs"});
+  add_sideband_1d("bdt_input_num_mrd_tracks", "numMRDTracks;", "Ntrks;[cm]",
+      "Ntrks;[cm]", NMRDtracks, selection_reco, {"bdt_inputs"});
+  add_sideband_1d("bdt_input_vertex_x_no_fv", "vertexX;cm", "Vertex X;cm",
+      "Vertex X;cm", VertexX, SELECTION_noFV, {"bdt_inputs_relaxed"});
+  add_sideband_1d("bdt_input_vertex_x", "vertexX;cm", "Vertex X;cm",
+      "Vertex X;cm", VertexX, selection_reco, {"bdt_inputs"});
+  add_sideband_1d("bdt_input_vertex_y_no_fv", "vertexY;cm", "Vertex Y;cm",
+      "Vertex Y;cm", VertexY, SELECTION_noFV, {"bdt_inputs_relaxed"});
+  add_sideband_1d("bdt_input_vertex_y", "vertexY;cm", "Vertex Y;cm",
+      "Vertex Y;cm", VertexY, selection_reco, {"bdt_inputs"});
+  add_sideband_1d("bdt_input_vertex_r_no_fv", "vertexR;cm", "Vertex R;cm",
+      "Vertex R;cm", VertexR, SELECTION_noFV, {"bdt_inputs_relaxed"});
+  add_sideband_1d("bdt_input_vertex_r", "vertexR;cm", "Vertex R;cm",
+      "Vertex R;cm", VertexR, selection_reco, {"bdt_inputs"});
+  add_sideband_1d("bdt_input_vertex_rr_no_fv", "vertexRR;cm",
+      "Vertex R^{2};cm", "Vertex R^{2};cm", VertexRR, SELECTION_noFV,
+      {"bdt_inputs_relaxed"});
+  add_sideband_1d("bdt_input_vertex_rr", "vertexRR;cm", "Vertex R^{2};cm",
+      "Vertex R^{2};cm", VertexRR, selection_reco, {"bdt_inputs"});
+  add_sideband_1d("bdt_input_vertex_z_no_fv", "vertexZ;cm", "Vertex Z;cm",
+      "Vertex Z;cm", VertexZ, SELECTION_noFV, {"bdt_inputs_relaxed"});
+  add_sideband_1d("bdt_input_vertex_z", "vertexZ;cm", "Vertex Z;cm",
+      "Vertex Z;cm", VertexZ, selection_reco, {"bdt_inputs"});
+  add_sideband_1d("bdt_input_prompt_pe_no_cut", "promptMuonTotalPE;",
+      "Prompt #mu PE;", "Prompt #mu PE;", PromptPE, SELECTION_noPrompt,
+      {"bdt_inputs_relaxed"});
+  add_sideband_1d("bdt_input_prompt_pe", "promptMuonTotalPE;",
+      "Prompt #mu PE;", "Prompt #mu PE;", PromptPE, selection_reco,
+      {"bdt_inputs"});
+  add_sideband_1d("bdt_input_qij_no_cut", "Qij;", "Q_{ij};", "Q_{ij};", Qij,
+      SELECTION_noQij, {"bdt_inputs_relaxed"});
+  add_sideband_1d("bdt_input_qij", "Qij;", "Q_{ij};", "Q_{ij};", Qij,
+      selection_reco, {"bdt_inputs"});
+  add_sideband_1d("bdt_input_tank_prompt_pe", "tank_bdt_input_promptMuonTotalPE;",
+      "BDT prompt #mu PE;", "BDT prompt #mu PE;", PromptPE, selection_reco,
+      {"bdt_inputs", "bdt_inputs_raw"});
+  add_sideband_1d("bdt_input_tank_qij", "tank_bdt_input_Qij;",
+      "BDT Q_{ij};", "BDT Q_{ij};", Qij, selection_reco,
+      {"bdt_inputs", "bdt_inputs_raw"});
+  add_sideband_1d("bdt_input_q_asym_ud", "tank_bdt_input_q_asym_ud;",
+      "BDT q asym UD;", "BDT q asym UD;", BDTSignedUnit, selection_reco,
+      {"bdt_inputs", "bdt_inputs_pmt"});
+  add_sideband_1d("bdt_input_pe_asym_ud", "tank_bdt_input_pe_asym_ud;",
+      "BDT pe asym UD;", "BDT pe asym UD;", BDTSignedUnit, selection_reco,
+      {"bdt_inputs", "bdt_inputs_pmt"});
+  add_sideband_1d("bdt_input_q_asym_tb", "tank_bdt_input_q_asym_tb;",
+      "BDT q asym TB;", "BDT q asym TB;", BDTSignedUnit, selection_reco,
+      {"bdt_inputs", "bdt_inputs_pmt"});
+  add_sideband_1d("bdt_input_pe_asym_tb", "tank_bdt_input_pe_asym_tb;",
+      "BDT pe asym TB;", "BDT pe asym TB;", BDTSignedUnit, selection_reco,
+      {"bdt_inputs", "bdt_inputs_pmt"});
+  add_sideband_1d("bdt_input_q_r_mean_tank", "tank_bdt_input_q_r_mean;",
+      "BDT q r mean;", "BDT q r mean;", BDTRadiusLike, selection_reco,
+      {"bdt_inputs", "bdt_inputs_pmt"});
+  add_sideband_1d("bdt_input_pe_r_mean_tank", "tank_bdt_input_pe_r_mean;",
+      "BDT pe r mean;", "BDT pe r mean;", BDTRadiusLike, selection_reco,
+      {"bdt_inputs", "bdt_inputs_pmt"});
+  add_sideband_1d("bdt_input_q_phi_mean", "tank_bdt_input_q_phi_mean;",
+      "BDT q #phi mean;", "BDT q #phi mean;", BDTPhi, selection_reco,
+      {"bdt_inputs", "bdt_inputs_pmt"});
+  add_sideband_1d("bdt_input_pe_phi_mean", "tank_bdt_input_pe_phi_mean;",
+      "BDT pe #phi mean;", "BDT pe #phi mean;", BDTPhi, selection_reco,
+      {"bdt_inputs", "bdt_inputs_pmt"});
+  add_sideband_1d("bdt_input_q_phi_c1", "tank_bdt_input_q_phi_c1;",
+      "BDT q #phi c1;", "BDT q #phi c1;", BDTSignedUnit, selection_reco,
+      {"bdt_inputs", "bdt_inputs_pmt"});
+  add_sideband_1d("bdt_input_q_phi_s1", "tank_bdt_input_q_phi_s1;",
+      "BDT q #phi s1;", "BDT q #phi s1;", BDTSignedUnit, selection_reco,
+      {"bdt_inputs", "bdt_inputs_pmt"});
+  add_sideband_1d("bdt_input_q_phi_a1", "tank_bdt_input_q_phi_a1;",
+      "BDT q #phi a1;", "BDT q #phi a1;", BDTUnitInterval, selection_reco,
+      {"bdt_inputs", "bdt_inputs_pmt"});
+  add_sideband_1d("bdt_input_q_phi_c2", "tank_bdt_input_q_phi_c2;",
+      "BDT q #phi c2;", "BDT q #phi c2;", BDTSignedUnit, selection_reco,
+      {"bdt_inputs", "bdt_inputs_pmt"});
+  add_sideband_1d("bdt_input_q_phi_s2", "tank_bdt_input_q_phi_s2;",
+      "BDT q #phi s2;", "BDT q #phi s2;", BDTSignedUnit, selection_reco,
+      {"bdt_inputs", "bdt_inputs_pmt"});
+  add_sideband_1d("bdt_input_q_phi_a2", "tank_bdt_input_q_phi_a2;",
+      "BDT q #phi a2;", "BDT q #phi a2;", BDTUnitInterval, selection_reco,
+      {"bdt_inputs", "bdt_inputs_pmt"});
+  add_sideband_1d("bdt_input_pe_phi_c1", "tank_bdt_input_pe_phi_c1;",
+      "BDT pe #phi c1;", "BDT pe #phi c1;", BDTSignedUnit, selection_reco,
+      {"bdt_inputs", "bdt_inputs_pmt"});
+  add_sideband_1d("bdt_input_pe_phi_s1", "tank_bdt_input_pe_phi_s1;",
+      "BDT pe #phi s1;", "BDT pe #phi s1;", BDTSignedUnit, selection_reco,
+      {"bdt_inputs", "bdt_inputs_pmt"});
+  add_sideband_1d("bdt_input_pe_phi_a1", "tank_bdt_input_pe_phi_a1;",
+      "BDT pe #phi a1;", "BDT pe #phi a1;", BDTUnitInterval, selection_reco,
+      {"bdt_inputs", "bdt_inputs_pmt"});
+  add_sideband_1d("bdt_input_pe_phi_c2", "tank_bdt_input_pe_phi_c2;",
+      "BDT pe #phi c2;", "BDT pe #phi c2;", BDTSignedUnit, selection_reco,
+      {"bdt_inputs", "bdt_inputs_pmt"});
+  add_sideband_1d("bdt_input_pe_phi_s2", "tank_bdt_input_pe_phi_s2;",
+      "BDT pe #phi s2;", "BDT pe #phi s2;", BDTSignedUnit, selection_reco,
+      {"bdt_inputs", "bdt_inputs_pmt"});
+  add_sideband_1d("bdt_input_pe_phi_a2", "tank_bdt_input_pe_phi_a2;",
+      "BDT pe #phi a2;", "BDT pe #phi a2;", BDTUnitInterval, selection_reco,
+      {"bdt_inputs", "bdt_inputs_pmt"});
+  add_sideband_1d("bdt_input_n_unique_pmts_hit",
+      "tank_bdt_input_n_unique_pmts_hit;", "BDT unique PMTs hit;",
+      "BDT unique PMTs hit;", BDTCountEdges, selection_reco,
+      {"bdt_inputs", "bdt_inputs_pmt"});
+  add_sideband_1d("bdt_input_max_pe_fraction",
+      "tank_bdt_input_max_pe_fraction;", "BDT max pe fraction;",
+      "BDT max pe fraction;", BDTUnitInterval, selection_reco,
+      {"bdt_inputs", "bdt_inputs_pmt"});
+  add_sideband_1d("bdt_input_top5_pe_fraction",
+      "tank_bdt_input_top5_pe_fraction;", "BDT top5 pe fraction;",
+      "BDT top5 pe fraction;", BDTUnitInterval, selection_reco,
+      {"bdt_inputs", "bdt_inputs_pmt"});
+  add_sideband_1d("bdt_input_pmt_pe_entropy",
+      "tank_bdt_input_pmt_pe_entropy;", "BDT PMT pe entropy;",
+      "BDT PMT pe entropy;", BDTEntropy, selection_reco,
+      {"bdt_inputs", "bdt_inputs_pmt"});
+  add_sideband_1d("bdt_input_pmt_pe_effective_n",
+      "tank_bdt_input_pmt_pe_effective_n;", "BDT PMT pe effective N;",
+      "BDT PMT pe effective N;", BDTEffectiveN, selection_reco,
+      {"bdt_inputs", "bdt_inputs_pmt"});
+  add_sideband_1d("bdt_input_q_center_x", "tank_bdt_input_q_center_x;",
+      "BDT q center x;cm", "BDT q center x;cm", BDTCenterCoord,
+      selection_reco, {"bdt_inputs", "bdt_inputs_geom"});
+  add_sideband_1d("bdt_input_q_center_y", "tank_bdt_input_q_center_y;",
+      "BDT q center y;cm", "BDT q center y;cm", BDTCenterCoord,
+      selection_reco, {"bdt_inputs", "bdt_inputs_geom"});
+  add_sideband_1d("bdt_input_q_center_z", "tank_bdt_input_q_center_z;",
+      "BDT q center z;cm", "BDT q center z;cm", BDTCenterCoord,
+      selection_reco, {"bdt_inputs", "bdt_inputs_geom"});
+  add_sideband_1d("bdt_input_q_rms_x", "tank_bdt_input_q_rms_x;",
+      "BDT q rms x;cm", "BDT q rms x;cm", BDTRmsCoord, selection_reco,
+      {"bdt_inputs", "bdt_inputs_geom"});
+  add_sideband_1d("bdt_input_q_rms_y", "tank_bdt_input_q_rms_y;",
+      "BDT q rms y;cm", "BDT q rms y;cm", BDTRmsCoord, selection_reco,
+      {"bdt_inputs", "bdt_inputs_geom"});
+  add_sideband_1d("bdt_input_q_rms_z", "tank_bdt_input_q_rms_z;",
+      "BDT q rms z;cm", "BDT q rms z;cm", BDTRmsCoord, selection_reco,
+      {"bdt_inputs", "bdt_inputs_geom"});
+  add_sideband_1d("bdt_input_pe_center_x", "tank_bdt_input_pe_center_x;",
+      "BDT pe center x;cm", "BDT pe center x;cm", BDTCenterCoord,
+      selection_reco, {"bdt_inputs", "bdt_inputs_geom"});
+  add_sideband_1d("bdt_input_pe_center_y", "tank_bdt_input_pe_center_y;",
+      "BDT pe center y;cm", "BDT pe center y;cm", BDTCenterCoord,
+      selection_reco, {"bdt_inputs", "bdt_inputs_geom"});
+  add_sideband_1d("bdt_input_pe_center_z", "tank_bdt_input_pe_center_z;",
+      "BDT pe center z;cm", "BDT pe center z;cm", BDTCenterCoord,
+      selection_reco, {"bdt_inputs", "bdt_inputs_geom"});
+  add_sideband_1d("bdt_input_pe_rms_x", "tank_bdt_input_pe_rms_x;",
+      "BDT pe rms x;cm", "BDT pe rms x;cm", BDTRmsCoord, selection_reco,
+      {"bdt_inputs", "bdt_inputs_geom"});
+  add_sideband_1d("bdt_input_pe_rms_y", "tank_bdt_input_pe_rms_y;",
+      "BDT pe rms y;cm", "BDT pe rms y;cm", BDTRmsCoord, selection_reco,
+      {"bdt_inputs", "bdt_inputs_geom"});
+  add_sideband_1d("bdt_input_pe_rms_z", "tank_bdt_input_pe_rms_z;",
+      "BDT pe rms z;cm", "BDT pe rms z;cm", BDTRmsCoord, selection_reco,
+      {"bdt_inputs", "bdt_inputs_geom"});
+  add_sideband_1d("bdt_input_hit_t_mean", "tank_bdt_input_hit_t_mean;",
+      "BDT hit t mean;", "BDT hit t mean;", BDTTimeMean, selection_reco,
+      {"bdt_inputs", "bdt_inputs_hits"});
+  add_sideband_1d("bdt_input_hit_t_stddev", "tank_bdt_input_hit_t_stddev;",
+      "BDT hit t stddev;", "BDT hit t stddev;", BDTTimeSpread, selection_reco,
+      {"bdt_inputs", "bdt_inputs_hits"});
+  add_sideband_1d("bdt_input_hit_q_sum", "tank_bdt_input_hit_q_sum;",
+      "BDT hit q sum;", "BDT hit q sum;", BDTChargeSum, selection_reco,
+      {"bdt_inputs", "bdt_inputs_hits"});
+  add_sideband_1d("bdt_input_hit_q_mean", "tank_bdt_input_hit_q_mean;",
+      "BDT hit q mean;", "BDT hit q mean;", BDTChargeMean, selection_reco,
+      {"bdt_inputs", "bdt_inputs_hits"});
+  add_sideband_1d("bdt_input_hit_q_stddev", "tank_bdt_input_hit_q_stddev;",
+      "BDT hit q stddev;", "BDT hit q stddev;", BDTChargeSpread,
+      selection_reco, {"bdt_inputs", "bdt_inputs_hits"});
+  add_sideband_1d("bdt_input_hit_pe_sum", "tank_bdt_input_hit_pe_sum;",
+      "BDT hit pe sum;", "BDT hit pe sum;", BDTChargeSum, selection_reco,
+      {"bdt_inputs", "bdt_inputs_hits"});
+  add_sideband_1d("bdt_input_hit_pe_mean", "tank_bdt_input_hit_pe_mean;",
+      "BDT hit pe mean;", "BDT hit pe mean;", BDTChargeMean, selection_reco,
+      {"bdt_inputs", "bdt_inputs_hits"});
+  add_sideband_1d("bdt_input_hit_pe_stddev", "tank_bdt_input_hit_pe_stddev;",
+      "BDT hit pe stddev;", "BDT hit pe stddev;", BDTChargeSpread,
+      selection_reco, {"bdt_inputs", "bdt_inputs_hits"});
+  add_sideband_1d("bdt_input_hit_t_min", "tank_bdt_input_hit_t_min;",
+      "BDT hit t min;", "BDT hit t min;", BDTTimeMean, selection_reco,
+      {"bdt_inputs", "bdt_inputs_hits"});
+  add_sideband_1d("bdt_input_hit_t_max", "tank_bdt_input_hit_t_max;",
+      "BDT hit t max;", "BDT hit t max;", BDTTimeMean, selection_reco,
+      {"bdt_inputs", "bdt_inputs_hits"});
+  add_sideband_1d("bdt_input_hit_t_range", "tank_bdt_input_hit_t_range;",
+      "BDT hit t range;", "BDT hit t range;", BDTTimeSpread, selection_reco,
+      {"bdt_inputs", "bdt_inputs_hits"});
+  add_sideband_1d("bdt_input_timing_corr_r",
+      "tank_bdt_input_timing_corr_r;", "BDT timing corr r;",
+      "BDT timing corr r;", BDTSignedUnit, selection_reco,
+      {"bdt_inputs", "bdt_inputs_hits"});
+  add_sideband_1d("bdt_input_timing_corr_z",
+      "tank_bdt_input_timing_corr_z;", "BDT timing corr z;",
+      "BDT timing corr z;", BDTSignedUnit, selection_reco,
+      {"bdt_inputs", "bdt_inputs_hits"});
 
-//////////////////////////////////////////////////////////////
- branchexpr_sideband = "vertexR;cm";
-   // the title "title; unit" is used in plot in root style
-  title ="Vertex R;cm";
-  // the tex title "tex title; units" is used in latex format
-  textitle = "Vertex R;cm";
-  Block1D *b1r_sideband_vertexR_noFV = new Block1D(branchexpr_sideband, title, textitle, VertexR, SELECTION_noFV, kSidebandRecoBin);
-  Block1D *b1r_sideband_vertexR = new Block1D(branchexpr_sideband, title, textitle, VertexR, selection_reco, kSidebandRecoBin);
-  vect_sideband.emplace_back(b1r_sideband_vertexR_noFV);
-  vect_sideband.emplace_back(b1r_sideband_vertexR);
-//////////////////////////////////////////////////////////////
- branchexpr_sideband = "vertexRR;cm";
-   // the title "title; unit" is used in plot in root style
-  title ="Vertex R^{2};cm";
-  // the tex title "tex title; units" is used in latex format
-  textitle = "Vertex R^{2};cm";
-  Block1D *b1r_sideband_vertexRR_noFV = new Block1D(branchexpr_sideband, title, textitle, VertexRR, SELECTION_noFV, kSidebandRecoBin);
-  Block1D *b1r_sideband_vertexRR = new Block1D(branchexpr_sideband, title, textitle, VertexRR, selection_reco, kSidebandRecoBin);
-  vect_sideband.emplace_back(b1r_sideband_vertexRR_noFV);
-  vect_sideband.emplace_back(b1r_sideband_vertexRR);
-//////////////////////////////////////////////////////////////
+  add_sideband_1d("throughgoing_pmu", branchexpr_reco_pmu, "p_{mu};GeV/c",
+      "p_{mu};GeV/c", PmuBinnEdges_wc_extra, SELECTION_thoughtgoing,
+      {"throughgoing"});
+  add_sideband_1d("throughgoing_track_to_mrd", "lenghtvertextoStartMRD_cm;",
+      "tracklenght;[cm]", "tracklenght;[cm]",
+      MRDtracklenght_vertex_toMRD, SELECTION_thoughtgoing, {"throughgoing"});
+  add_sideband_1d("throughgoing_track_in_mrd", "tracklenghtMRD_cm;",
+      "tracklenght;[cm]", "tracklenght;[cm]", MRDtracklenght,
+      SELECTION_thoughtgoing, {"throughgoing"});
+  add_sideband_1d("throughgoing_prompt_pe", "promptMuonTotalPE;",
+      "Prompt #mu PE;", "Prompt #mu PE;", PromptPE, SELECTION_thoughtgoing,
+      {"throughgoing"});
+  add_sideband_1d("throughgoing_qij", "Qij;", "Q_{ij};", "Q_{ij};", Qij,
+      SELECTION_thoughtgoing, {"throughgoing"});
+  add_sideband_1d("throughgoing_vertex_x", "vertexX;cm", "Vertex X;cm",
+      "Vertex X;cm", VertexX, SELECTION_thoughtgoing, {"throughgoing"});
+  add_sideband_1d("throughgoing_vertex_y", "vertexY;cm", "Vertex Y;cm",
+      "Vertex Y;cm", VertexY, SELECTION_thoughtgoing, {"throughgoing"});
+  add_sideband_1d("throughgoing_vertex_r", "vertexR;cm", "Vertex R;cm",
+      "Vertex R;cm", VertexR, SELECTION_thoughtgoing, {"throughgoing"});
+  add_sideband_1d("throughgoing_vertex_rr", "vertexRR;cm",
+      "Vertex R^{2};cm", "Vertex R^{2};cm", VertexRR, SELECTION_thoughtgoing,
+      {"throughgoing"});
+  add_sideband_1d("throughgoing_vertex_z", "vertexZ;cm", "Vertex Z;cm",
+      "Vertex Z;cm", VertexZ, SELECTION_thoughtgoing, {"throughgoing"});
 
- branchexpr_sideband = "vertexZ;cm";
-   // the title "title; unit" is used in plot in root style
-  title ="Vertex Z;cm";
-  // the tex title "tex title; units" is used in latex format
-  textitle = "Vertex Z;cm";
-  Block1D *b1r_sideband_vertexZ_noFV = new Block1D(branchexpr_sideband, title, textitle, VertexZ, SELECTION_noFV, kSidebandRecoBin);
-  Block1D *b1r_sideband_vertexZ = new Block1D(branchexpr_sideband, title, textitle, VertexZ, selection_reco, kSidebandRecoBin);
-  vect_sideband.emplace_back(b1r_sideband_vertexZ_noFV);
-  vect_sideband.emplace_back(b1r_sideband_vertexZ);
-//////////////////////////////////////////////////////////////
-
- branchexpr_sideband = "promptMuonTotalPE;";
-   // the title "title; unit" is used in plot in root style
-  title ="Prompt #mu PE;";
-  // the tex title "tex title; units" is used in latex format
-  textitle = "Prompt #mu PE;";
-  Block1D *b1r_sideband_prompt_noprompt = new Block1D(branchexpr_sideband, title, textitle, PromptPE, SELECTION_noPrompt, kSidebandRecoBin);
-  Block1D *b1r_sideband_prompt = new Block1D(branchexpr_sideband, title, textitle, PromptPE, selection_reco, kSidebandRecoBin);
-  vect_sideband.emplace_back(b1r_sideband_prompt_noprompt);
-  vect_sideband.emplace_back(b1r_sideband_prompt);
-//////////////////////////////////////////////////////////////
-  
-   branchexpr_sideband = "Qij;";
-   // the title "title; unit" is used in plot in root style
-  title ="Q_{ij};";
-  // the tex title "tex title; units" is used in latex format
-  textitle = "Q_{ij};";
-  Block1D *b1r_sideband_Qji_noQji = new Block1D(branchexpr_sideband, title, textitle, Qij, SELECTION_noQij, kSidebandRecoBin);
-  Block1D *b1r_sideband_Qji = new Block1D(branchexpr_sideband, title, textitle, Qij, selection_reco, kSidebandRecoBin);
-  vect_sideband.emplace_back(b1r_sideband_Qji_noQji);
-  vect_sideband.emplace_back(b1r_sideband_Qji);
-//////////////////////////////////////////////////////////////
-  */
-  
-  // Throught going muons selection 
-  /*
-  Block1D *b1dt_pmu_reco_nopmu = new Block1D( branchexpr_reco_pmu, title, textitle, PmuBinnEdges_wc_extra, SELECTION_thoughtgoing, kSidebandRecoBin);
-    vect_sideband.emplace_back(b1dt_pmu_reco_nopmu);
-  
-   branchexpr_sideband = "lenghtvertextoStartMRD_cm;";
-   // the title "title; unit" is used in plot in root style
-  title ="tracklenght;[cm]";
-  // the tex title "tex title; units" is used in latex format
-  textitle = "tracklenght;[cm]";
-  
-  
-    Block1D *b1r_sideband_trklengintank = new Block1D(branchexpr_sideband, title, textitle, MRDtracklenght_vertex_toMRD, SELECTION_thoughtgoing, kSidebandRecoBin);
-  vect_sideband.emplace_back(b1r_sideband_trklengintank);
-  
-  branchexpr_sideband = "tracklenghtMRD_cm;";
-  
-  Block1D *b1r_sideband_trklengInMRD = new Block1D(branchexpr_sideband, title, textitle, MRDtracklenght, SELECTION_thoughtgoing, kSidebandRecoBin);
-  vect_sideband.emplace_back(b1r_sideband_trklengInMRD);
-  
-  
-  
-   branchexpr_sideband = "promptMuonTotalPE;";
-   // the title "title; unit" is used in plot in root style
-  title ="Prompt #mu PE;";
-  // the tex title "tex title; units" is used in latex format
-  textitle = "Prompt #mu PE;";
-  //Block1D *b1r_sideband_prompt_noprompt = new Block1D(branchexpr_sideband, title, textitle, PromptPE, SELECTION_noPrompt, kSidebandRecoBin);
-  Block1D *b1r_sideband_prompt = new Block1D(branchexpr_sideband, title, textitle, PromptPE, SELECTION_thoughtgoing, kSidebandRecoBin);
-  //vect_sideband.emplace_back(b1r_sideband_prompt_noprompt);
-  vect_sideband.emplace_back(b1r_sideband_prompt);
-  
-  
-  
-     branchexpr_sideband = "Qij;";
-   // the title "title; unit" is used in plot in root style
-  title ="Q_{ij};";
-  // the tex title "tex title; units" is used in latex format
-  textitle = "Q_{ij};";
-  Block1D *b1r_sideband_Qji = new Block1D(branchexpr_sideband, title, textitle, Qij, SELECTION_thoughtgoing, kSidebandRecoBin);
-  vect_sideband.emplace_back(b1r_sideband_Qji);
-  
-    ////////////////////////////////////////////
- branchexpr_sideband = "vertexX;cm";
-   // the title "title; unit" is used in plot in root style
-  title ="Vertex X;cm";
-  // the tex title "tex title; units" is used in latex format
-  textitle = "Vertex X;cm";
-  
-  Block1D *b1r_sideband_vertexX = new Block1D(branchexpr_sideband, title, textitle, VertexX, SELECTION_thoughtgoing, kSidebandRecoBin);
-  
-  vect_sideband.emplace_back(b1r_sideband_vertexX);
-//////////////////////////////////////////////////////////////
-
- branchexpr_sideband = "vertexY;cm";
-   // the title "title; unit" is used in plot in root style
-  title ="Vertex Y;cm";
-  // the tex title "tex title; units" is used in latex format
-  textitle = "Vertex Y;cm";
-
-  Block1D *b1r_sideband_vertexY = new Block1D(branchexpr_sideband, title, textitle, VertexY, SELECTION_thoughtgoing, kSidebandRecoBin);
-
-  vect_sideband.emplace_back(b1r_sideband_vertexY);
-
-//////////////////////////////////////////////////////////////
- branchexpr_sideband = "vertexR;cm";
-   // the title "title; unit" is used in plot in root style
-  title ="Vertex R;cm";
-  // the tex title "tex title; units" is used in latex format
-  textitle = "Vertex R;cm";
-  Block1D *b1r_sideband_vertexR = new Block1D(branchexpr_sideband, title, textitle, VertexR, SELECTION_thoughtgoing, kSidebandRecoBin);
-  vect_sideband.emplace_back(b1r_sideband_vertexR);
-//////////////////////////////////////////////////////////////
- branchexpr_sideband = "vertexRR;cm";
-   // the title "title; unit" is used in plot in root style
-  title ="Vertex R^{2};cm";
-  // the tex title "tex title; units" is used in latex format
-  textitle = "Vertex R^{2};cm";
-  Block1D *b1r_sideband_vertexRR = new Block1D(branchexpr_sideband, title, textitle, VertexRR, SELECTION_thoughtgoing, kSidebandRecoBin);
-  vect_sideband.emplace_back(b1r_sideband_vertexRR);
-//////////////////////////////////////////////////////////////
-
- branchexpr_sideband = "vertexZ;cm";
-   // the title "title; unit" is used in plot in root style
-  title ="Vertex Z;cm";
-  // the tex title "tex title; units" is used in latex format
-  textitle = "Vertex Z;cm";
-  Block1D *b1r_sideband_vertexZ = new Block1D(branchexpr_sideband, title, textitle, VertexZ, SELECTION_thoughtgoing, kSidebandRecoBin);
-  vect_sideband.emplace_back(b1r_sideband_vertexZ);
-  
-*/
-
-    // std::vector<double> BTD_PredictionSideband = {0.0,.2,.4, 0.45, .55,.6,.65,.7,.75,.76,.77,.78,.79,.8,.81,.82,.83,.84,.85,.86,.87,.88,.89 ,.9, .925};
-
-  
-   branchexpr_sideband = "tank_bdt_no_pion_score;";
-   // the title "title; unit" is used in plot in root style
-  title ="BDT score;";
-  // the tex title "tex title; units" is used in latex format
-  textitle = "BDT score;";
-  Block1D *b1r_sideband_BDT = new Block1D(branchexpr_sideband, title, textitle, BTD_PredictionSideband, SELECTION_BDT, kSidebandRecoBin);
-  vect_sideband.emplace_back(b1r_sideband_BDT);
-  
-  
-  
-   // the title "title; unit" is used in plot in root style
-  title ="p_{mu};GeV/c";
-  // the tex title "tex title; units" is used in latex format
-  textitle = "p_{mu};GeV/c";
-    Block1D *Pmu_reco_pion_sideband = new Block1D( branchexpr_reco_pmu, title, textitle, PmuBinnEdges_wc, SELECTION_Pion, kSidebandRecoBin);
-  vect_sideband.emplace_back(Pmu_reco_pion_sideband);
+  add_sideband_1d("bdt_no_pion_score", "tank_bdt_no_pion_score;",
+      "BDT score;", "BDT score;", BTD_PredictionSideband, SELECTION_BDT,
+      {"bdt_outputs"});
+  add_sideband_1d("bdt_pion_score", "tank_bdt_pion_score;", "BDT pion score;",
+      "BDT pion score;", BTD_PredictionSideband, SELECTION_BDT,
+      {"bdt_outputs"});
+  add_sideband_1d("pion_control_pmu", branchexpr_reco_pmu, "p_{mu};GeV/c",
+      "p_{mu};GeV/c", PmuBinnEdges_wc, SELECTION_Pion, {"pion_control"});
   
 }
