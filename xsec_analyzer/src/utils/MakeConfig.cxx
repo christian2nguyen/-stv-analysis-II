@@ -313,7 +313,15 @@ void MakeConfig::Print(){
   //	int sideband_bin_index = 0;
   for(int i = 0; i < vect_sideband->size(); i++){
     if(vect_sideband->at(i).block_reco_->Is1D()){
-      auto& bin_sideband_slice = add_slice( sb, vect_sideband->at(i).block_reco_->GetVector(), bin_number_var_idx++ );
+      sb.slice_vars_.emplace_back(
+          vect_sideband->at(i).block_reco_->GetXTitle(),
+          vect_sideband->at(i).block_reco_->GetXTexTitle(),
+          vect_sideband->at(i).block_reco_->GetXTitleUnit(),
+          vect_sideband->at(i).block_reco_->GetXTexTitleUnit() );
+      int sideband_var_idx = find_slice_var_index(
+          vect_sideband->at(i).block_reco_->GetXTitle(), sb.slice_vars_ );
+      auto& bin_sideband_slice = add_slice( sb,
+          vect_sideband->at(i).block_reco_->GetVector(), sideband_var_idx );
       int sideband_bin_index = 0;
       for(int j = 0; j < vect_sideband->at(i).block_reco_->GetNBinsX(); j++){
         bin_sideband_slice.bin_map_[ ++sideband_bin_index ].insert( reco_bins.size() );
@@ -323,8 +331,20 @@ void MakeConfig::Print(){
     }
     else{
 
-      int xvar_idx = bin_number_var_idx++;
-      int yvar_idx = bin_number_var_idx++;
+      sb.slice_vars_.emplace_back(
+          vect_sideband->at(i).block_reco_->GetXTitle(),
+          vect_sideband->at(i).block_reco_->GetXTexTitle(),
+          vect_sideband->at(i).block_reco_->GetXTitleUnit(),
+          vect_sideband->at(i).block_reco_->GetXTexTitleUnit() );
+      sb.slice_vars_.emplace_back(
+          vect_sideband->at(i).block_reco_->GetYTitle(),
+          vect_sideband->at(i).block_reco_->GetYTexTitle(),
+          vect_sideband->at(i).block_reco_->GetYTitleUnit(),
+          vect_sideband->at(i).block_reco_->GetYTexTitleUnit() );
+      int xvar_idx = find_slice_var_index(
+          vect_sideband->at(i).block_reco_->GetXTitle(), sb.slice_vars_ );
+      int yvar_idx = find_slice_var_index(
+          vect_sideband->at(i).block_reco_->GetYTitle(), sb.slice_vars_ );
       for( int j = 0; j < vect_sideband->at(i).block_reco_->GetNBinsX(); j++ ){
         double xlow = vect_sideband->at(i).block_reco_->GetBinXLow(j);
         double xhigh = vect_sideband->at(i).block_reco_->GetBinXHigh(j);
