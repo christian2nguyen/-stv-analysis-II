@@ -119,8 +119,14 @@ contains() {
 
 
 
-output_dir=`realpath ${output_dir}`
+if [ ! -d "${output_dir}" ]; then
+  echo "Output directory \"${output_dir}\" not found. Creating it..."
+  mkdir -p "${output_dir}" || exit 2
+fi
+
+output_dir=`realpath "${output_dir}"`
 output_config=${output_config}_${version}.txt
+output_config_path="${output_dir}/${output_config}"
 
 #check_existence ${config_dir}/${output_config}
 #check_existence_dir ${output_dir}
@@ -131,17 +137,11 @@ if [ ! -f "$input_file" ]; then
   exit 1
 fi
 
-if [ ! -d "${output_dir}" ]; then
-  echo "Output directory \"${output_dir}\" not found"
-  exit 2
-fi
-
-
-echo "# `date`" > ${config_dir}/${output_config}
+echo "# `date`" > "${output_config_path}"
 while IFS= read -r line; do
   # Skip comments and empty lines
   if [[ ${line:0:1} == "#" ]] || [[ -z "$line" ]]; then
-  echo $line >> ${config_dir}/${output_config}
+  echo $line >> "${output_config_path}"
     continue
   fi
   # Split the line into parts
@@ -178,7 +178,7 @@ while IFS= read -r line; do
   echo "Output file name: ${output_file_name}"
   time ../bin/ProcessNTuples_ANNIE ${file_name} JOINTCC0pi_ANNIE ${output_file_name}
 #  nohup  ProcessNTuplesMT ${file_name} JOINTCC0pi ${output_file_name}  > ${output_file_name}log 
-  echo "${output_file_name} $index $sample_type $num_events $scaling_factor" >> ${config_dir}/${output_config}
+  echo "${output_file_name} $index $sample_type $num_events $scaling_factor" >> "${output_config_path}"
   echo "--------------------------------"
 
 done < "$input_file"
