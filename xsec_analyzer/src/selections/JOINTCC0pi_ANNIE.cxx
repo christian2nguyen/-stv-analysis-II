@@ -33,7 +33,7 @@ double UpperPCut = 1200.;  //MeV
 namespace {
 
 const char* kANNIETankBDTModelPath =
-    "/exp/uboone/app/users/cnguyen/stv-analysis-new/stv_BDT_ANNIE/bdt_cpp_outputs_5millsample_simple_v6/ANNIEPhaseIIBDT.json";
+    "/exp/uboone/app/users/cnguyen/stv-analysis-new/stv_BDT_ANNIE/bdt_cpp_outputs_5mill_simpler_v18/ANNIEPhaseIIBDT.json";
 BoosterHandle* booster = nullptr;
 bool g_annie_tank_bdt_loaded = false;
 bool g_annie_tank_bdt_load_attempted = false;

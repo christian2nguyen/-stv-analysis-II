@@ -17,7 +17,7 @@ version=current
 config_dir=${XSEC_ANALYZER_DIR}/configs
 input_file=${config_dir}/ANNIE_ntuples_CVfiles1234.txt
 output_config=files_to_process_ANNIE
-output_dir=/exp/uboone/data/users/cnguyen/CC0Pi_Selection/ANNIE_Files_Final_ntuples_v4
+output_dir=/exp/uboone/data/users/cnguyen/CC0Pi_Selection/ANNIE_Files_Final_ntuples_v5
 filter_runnumbers=1,2,3,4
 filter_samples="numuMC,nueMC,dirtMC,extBNB,onBNB,openBNB,detVarCV,detVarLYdown,detVarLYrayl,detVarLYatten,detVarSCE,detVarRecomb2,detVarWMX,detVarWMYZ,detVarWMAngleXZ,detVarWMAngleYZ,detVarModX,detVarModYZ,detVarCVExtra,altCVMC"
 # Parse command-line arguments

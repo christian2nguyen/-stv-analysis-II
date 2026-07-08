@@ -7,3 +7,4 @@ xsec_analyzer/bin/
 xsec_analyzer/configs/*.txt
 !xsec_analyzer/configs/MRDEffUncYlarge.txt
 xsec_analyzer/src/binning/BinSchemeFactory.dylib
+xsec_analyzer/scripts/*.log

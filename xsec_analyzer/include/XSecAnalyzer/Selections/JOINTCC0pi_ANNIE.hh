@@ -164,7 +164,7 @@ public:
       double tank_bdt_pion_score_ = -9999.0;
       TankBDTFeatureOutputs tank_bdt_feature_outputs_;
       bool print_tank_bdt_input_preview_ = false;
-      int print_tank_bdt_input_preview_limit_ = 10;
+      int print_tank_bdt_input_preview_limit_ = 25;
       int print_tank_bdt_input_preview_count_ = 0;
       
       
